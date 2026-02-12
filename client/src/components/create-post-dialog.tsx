@@ -32,11 +32,10 @@ export function CreatePostDialog({ children }: { children?: React.ReactNode }) {
     
     await createPost.mutateAsync({
       content,
-      universityId: user.universityId,
       type: "text",
       tags: [tag],
-      authorId: user.id // Ignored by backend but required by schema type usually, handled by middleware
-    });
+      authorId: user.id
+    } as any);
     
     setOpen(false);
     setContent("");

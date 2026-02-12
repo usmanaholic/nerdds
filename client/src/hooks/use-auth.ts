@@ -1,7 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, type InsertUser } from "@shared/routes";
+import { api } from "@shared/routes";
 import { z } from "zod";
 import { useToast } from "./use-toast";
+import { InsertUser, User } from "@shared/schema";
 
 export function useAuth() {
   const queryClient = useQueryClient();

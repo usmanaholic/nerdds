@@ -156,7 +156,6 @@ export const insertPostSchema = createInsertSchema(posts).omit({
   commentsCount: true,
   savesCount: true,
   authorId: true, // set by session
-  universityId: true, // set by session
 });
 
 export const insertCommentSchema = createInsertSchema(comments).omit({
@@ -178,3 +177,6 @@ export type University = typeof universities.$inferSelect;
 export type Post = typeof posts.$inferSelect;
 export type Comment = typeof comments.$inferSelect;
 export type DirectMessage = typeof directMessages.$inferSelect;
+export type InsertPost = z.infer<typeof insertPostSchema>;
+export type InsertComment = z.infer<typeof insertCommentSchema>;
+export type InsertMessage = z.infer<typeof insertMessageSchema>;

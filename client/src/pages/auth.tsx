@@ -214,7 +214,7 @@ function RegisterForm({ universities, loading, onUserCreated }: { universities: 
                   {loading ? (
                     <div className="p-2 text-center text-sm">Loading...</div>
                   ) : (
-                    universities.map((uni) => (
+                    universities.map((uni: any) => (
                       <SelectItem key={uni.id} value={uni.id.toString()}>
                         {uni.name}
                       </SelectItem>

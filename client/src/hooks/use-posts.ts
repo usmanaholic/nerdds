@@ -1,7 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, buildUrl, type Post } from "@shared/routes";
+import { api, buildUrl } from "@shared/routes";
 import { z } from "zod";
 import { useToast } from "./use-toast";
+import { Post } from "@shared/schema";
 
 // Fetch posts
 export function usePosts(params?: { universityId?: number; tag?: string }) {
