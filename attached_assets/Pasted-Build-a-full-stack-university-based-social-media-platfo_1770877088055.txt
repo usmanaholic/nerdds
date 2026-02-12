@@ -1,0 +1,993 @@
+Build a full-stack university-based social media platform named “nerdds”.
+This is a production-ready MVP, not a prototype.
+Follow these instructions strictly and architect it cleanly, modularly, and scalably.
+
+🧠 PRODUCT OVERVIEW
+nerdds is a university-based social platform where students can:
+
+Join one university only
+
+
+Post content inside their university feed
+
+
+Interact with other students
+
+
+Follow peers
+
+
+Send direct messages
+
+
+Earn gamification levels
+
+
+Build campus identity
+
+The focus is daily engagement and strong campus community culture.
+
+🏗️ TECH STACK (MANDATORY)
+Frontend:
+
+Next.js (App Router)
+
+
+TypeScript
+
+
+Tailwind CSS
+
+
+Shadcn/UI or clean component system
+
+Backend:
+
+Next.js API Routes
+
+
+Node.js
+
+
+MongoDB with Mongoose
+
+Authentication:
+
+JWT-based auth (stored in HTTP-only cookies)
+
+Media:
+
+Cloudinary integration for image uploads
+
+Deployment-ready structure.
+
+🗂️ PROJECT STRUCTURE
+Use clean folder structure:
+/app
+/components
+/lib
+/models
+/api
+/hooks
+/utils
+/middleware
+Follow modular separation:
+
+Business logic in services
+
+
+DB logic in models
+
+
+API routes thin and clean
+
+
+Reusable components
+
+
+🎯 CORE RULES (VERY IMPORTANT)
+1.
+One user = one university (immutable after signup)
+2.
+3.
+Users can only post in their university
+4.
+5.
+DMs only allowed within same university
+6.
+7.
+Public viewers can only read feeds
+8.
+9.
+No multi-university posting
+10.
+11.
+No AI features
+12.
+13.
+No payments
+14.
+15.
+No admin dashboard beyond moderation basics
+16.
+Enforce these at database and API level.
+
+🧾 DATABASE MODELS (DETAILED)
+Use Mongoose schemas.
+
+1️⃣ University Model
+Fields:
+
+name (string, required, unique)
+
+
+slug (string, unique)
+
+
+createdAt
+
+
+updatedAt
+
+Seed initial universities:
+
+NUST
+
+
+LUMS
+
+
+FAST
+
+
+COMSATS
+
+
+GIKI
+
+
+2️⃣ User Model
+Fields:
+
+email (unique, required)
+
+
+password (hashed using bcrypt)
+
+
+username (randomly generated, unique)
+
+
+university (ObjectId ref University, required)
+
+
+department (string)
+
+
+semester (string)
+
+
+bio (string)
+
+
+profileImage (string)
+
+
+points (number, default 0)
+
+
+level (string, default “Fresher”)
+
+
+followersCount (number)
+
+
+followingCount (number)
+
+
+isBlocked (boolean)
+
+
+createdAt
+
+Indexes:
+
+email unique
+
+
+username unique
+
+
+university index
+
+
+3️⃣ Post Model
+Fields:
+
+author (ObjectId ref User)
+
+
+university (ObjectId ref University)
+
+
+content (text)
+
+
+image (optional)
+
+
+type (enum: text, image, event, study, meme, poll)
+
+
+tags (array of enum: Fun, Event, Study, Announcement)
+
+
+likesCount
+
+
+commentsCount
+
+
+savesCount
+
+
+createdAt
+
+Index:
+
+university + createdAt descending
+
+
+4️⃣ Comment Model
+Fields:
+
+post (ref Post)
+
+
+author (ref User)
+
+
+content
+
+
+createdAt
+
+
+5️⃣ Like Model
+Fields:
+
+user
+
+
+post
+Unique compound index (user + post)
+
+
+6️⃣ Follow Model
+Fields:
+
+follower
+
+
+following
+Unique compound index
+
+
+7️⃣ DirectMessage Model
+Fields:
+
+sender
+
+
+receiver
+
+
+content
+
+
+createdAt
+
+Before sending message:
+Verify sender.university === receiver.university
+
+🔐 AUTHENTICATION SYSTEM
+Implement:
+
+Signup
+
+
+Login
+
+
+Logout
+
+
+Protected routes middleware
+
+
+JWT stored in HTTP-only cookie
+
+
+Password hashing with bcrypt
+
+
+Auth middleware verifying token
+
+During signup:
+
+User selects university
+
+
+System auto-generates random username like:
+nerd_48291
+
+
+University cannot be changed later
+
+
+📰 UNIVERSITY FEED (MAIN FEATURE)
+Each university has its own feed page:
+/u/[universitySlug]
+Features:
+
+Infinite scroll pagination
+
+
+Sort by newest
+
+
+Filter by tag
+
+
+Show:
+
+o
+Username
+o
+o
+Level badge
+o
+o
+Post content
+o
+o
+Image (if exists)
+o
+o
+Tags
+o
+o
+Like button
+o
+o
+Comment button
+o
+o
+Save button
+o
+Users can ONLY create posts in their university.
+Public viewers:
+
+Can view feed
+
+
+Cannot like, comment, or post
+
+
+💬 DIRECT MESSAGING
+Basic one-to-one:
+
+Only same university users
+
+
+Text only
+
+
+Real-time NOT required (polling is fine)
+
+
+Chat page:
+/messages
+
+
+Conversation list
+
+
+Chat window
+
+
+⭐ GAMIFICATION SYSTEM
+Points Logic:
+
+Creating post → +10
+
+
+Receiving like → +2
+
+
+Commenting → +3
+
+Levels:
+0–99 → Fresher
+100–299 → Active Student
+300–699 → Campus Star
+700+ → Uni Legend
+Automatically update level when points change.
+Display level badge on profile and posts.
+
+🚨 MODERATION
+Implement:
+
+Report post
+
+
+Report user
+
+
+Block user
+
+
+Prevent blocked users’ content visibility
+
+Create simple Report model:
+Fields:
+
+reporter
+
+
+targetUser (optional)
+
+
+targetPost (optional)
+
+
+reason
+
+
+createdAt
+
+
+🎨 🎨 UI & DESIGN SYSTEM — INSTAGRAM × REDDIT INSPIRED
+Design philosophy:
+
+Clean
+
+
+Neutral
+
+
+Content-first
+
+
+Zero visual noise
+
+
+Familiar layout patterns
+
+
+Highly readable
+
+
+Addictive scroll experience
+
+The UI must feel like:
+Instagram (clean, modern, light)
++
+Reddit (structured posts, threaded comments, tag filtering)
+
+🌈 Color System (MANDATORY)
+Primary Background:
+
+#FFFFFF (pure white)
+
+
+Light gray sections: #F6F7F8
+
+Text:
+
+Primary text: #111111
+
+
+Secondary text: #6B7280
+
+
+Muted text: #9CA3AF
+
+Borders:
+
+#E5E7EB (very subtle gray)
+
+Accent (minimal usage only for interactions):
+
+Soft blue: #2563EB
+OR
+
+
+Reddit-style orange: #FF4500 (only for upvote/like button highlight)
+
+DO NOT:
+
+Use neon colors
+
+
+Use heavy gradients
+
+
+Use purple or flashy branding
+
+
+Use heavy shadows
+
+The platform should feel calm and trustworthy.
+
+🧱 Layout System
+Desktop Layout
+Three-column layout (Reddit inspired):
+Left Sidebar:
+
+Logo (nerdds)
+
+
+University name
+
+
+Home
+
+
+Following
+
+
+Messages
+
+
+Profile
+
+
+Create Post button
+
+Center:
+
+Main feed (max width ~650px)
+
+
+Infinite scroll
+
+
+Clean card layout
+
+Right Sidebar:
+
+Suggested users
+
+
+Trending tags
+
+
+University stats (posts today, active users)
+
+
+Mobile Layout
+
+Bottom navigation (Instagram style)
+
+
+Home
+
+
+Search
+
+
+Create
+
+
+Messages
+
+
+Profile
+
+Feed scroll must be smooth and extremely clean.
+
+📰 Post Card Design
+Post card style:
+
+White background
+
+
+Thin border
+
+
+Rounded corners (rounded-lg)
+
+
+No heavy shadow
+
+
+Clean padding
+
+Each post shows:
+Header:
+
+Profile image (small circle)
+
+
+Username
+
+
+Level badge (small subtle pill)
+
+
+Timestamp
+
+
+University tag (small muted text)
+
+Body:
+
+Text content (clear, readable spacing)
+
+
+Image (if exists, full width, rounded corners)
+
+
+Tags displayed as subtle pills (#Fun, #Study etc.)
+
+Footer:
+
+Like button (outline by default, filled on click)
+
+
+Comment button
+
+
+Save button
+
+
+Share button
+
+Keep interaction buttons small and subtle.
+
+🔘 Buttons
+Primary Button:
+
+Background: black
+
+
+Text: white
+
+
+Rounded-lg
+
+
+Hover: slightly lighter black
+
+Secondary Button:
+
+Border: #E5E7EB
+
+
+Text: #111111
+
+
+Hover: light gray background
+
+Danger Button:
+
+Red text only
+
+
+No big red backgrounds
+
+
+🏷️ Tag System
+Tags appear as:
+
+Small pill
+
+
+Light gray background
+
+
+Dark gray text
+
+
+No bright colors
+
+Selected filter:
+
+Soft blue highlight
+
+
+Bold text
+
+
+💬 Comment Section (Reddit style)
+
+Threaded layout
+
+
+Indented replies (if implemented later)
+
+
+Small avatar
+
+
+Clean spacing
+
+
+No chat bubble design
+
+Very minimal.
+
+💬 Direct Messages UI
+Instagram-inspired:
+Left:
+
+Conversation list
+Right:
+
+
+Chat window
+
+Messages:
+
+Sender messages right-aligned
+
+
+Receiver messages left-aligned
+
+
+Light gray bubbles
+
+
+No colorful chat theme
+
+Keep it serious and mature.
+
+🧑 Profile Page
+Clean grid layout:
+Top:
+
+Large avatar
+
+
+Username
+
+
+Level badge
+
+
+Bio
+
+
+University + department
+
+
+Followers / Following count
+
+Below:
+
+Tabs:
+
+o
+Posts
+o
+o
+Saved
+o
+o
+About
+o
+Posts shown in clean card list (not grid like Instagram — this is Reddit-style text-first platform)
+
+✨ Animations
+
+Very subtle hover transitions
+
+
+No bouncing
+
+
+No flashy motion
+
+
+Smooth fade-ins
+
+
+Clean skeleton loaders
+
+
+🔤 Typography
+Use:
+
+Inter font
+OR
+
+
+Geist
+OR
+
+
+System font stack
+
+Font weights:
+
+400 regular
+
+
+500 medium
+
+
+600 semibold
+
+No heavy bold everywhere.
+Spacing must breathe.
+
+🧠 Overall Feel
+The product should feel:
+
+Academic but fun
+
+
+Social but not childish
+
+
+Modern but not startup cringe
+
+
+Familiar but campus-exclusive
+
+If someone opens nerdds, they should think:
+"This feels like Reddit made only for my university."
+
+🔎 FOLLOW SYSTEM
+Users can:
+
+Follow/unfollow
+
+
+View followers list
+
+
+View following list
+
+Optional:
+Create “Following Feed” filtered by followed users.
+
+🔁 API ROUTES TO IMPLEMENT
+Auth:
+
+POST /api/auth/signup
+
+
+POST /api/auth/login
+
+
+POST /api/auth/logout
+
+Posts:
+
+POST /api/posts
+
+
+GET /api/posts?university=slug
+
+
+DELETE /api/posts/:id
+
+Likes:
+
+POST /api/likes
+
+
+DELETE /api/likes
+
+Comments:
+
+POST /api/comments
+
+
+GET /api/comments/:postId
+
+Follow:
+
+POST /api/follow
+
+
+DELETE /api/follow
+
+Messages:
+
+POST /api/messages
+
+
+GET /api/messages/:userId
+
+Reports:
+
+POST /api/reports
+
+
+⚡ PERFORMANCE OPTIMIZATION
+
+Use indexes properly
+
+
+Lean queries
+
+
+Paginated queries
+
+
+Avoid over-fetching
+
+
+Populate only necessary fields
+
+
+🧪 SECURITY
+
+Validate all inputs
+
+
+Prevent cross-university access
+
+
+Rate limit sensitive routes
+
+
+Sanitize user content
+
+
+Protect against duplicate likes/follows
+
+
+🚀 SEED STRATEGY
+Seed:
+
+20 fake users (NUST)
+
+
+50 posts
+
+
+Random likes/comments
+
+To avoid empty feed problem.
+
+📊 SUCCESS METRICS (FOR FUTURE ANALYTICS)
+Prepare structure to track:
+
+Daily active users
+
+
+Posts per university
+
+
+Like engagement
+
+
+Retention signals
+
+No external analytics yet, just prepare backend counters.
+
+📦 DELIVERABLE
+Build fully functional MVP.
+Ensure:
+
+Clean architecture
+
+
+Modular code
+
+
+Scalable structure
+
+
+No unnecessary features
+
+
+Production-ready logic
+
+App name everywhere: nerdds
+Final goal:
+A clean, addictive, university-only social ecosystem students open daily.
