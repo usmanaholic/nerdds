@@ -136,7 +136,9 @@ export const messageRelations = relations(directMessages, ({ one }) => ({
 }));
 
 // Schemas
-export const insertUserSchema = createInsertSchema(users).omit({
+export const insertUserSchema = createInsertSchema(users, {
+  universityId: z.coerce.number(),
+}).omit({
   id: true,
   createdAt: true,
   points: true,
