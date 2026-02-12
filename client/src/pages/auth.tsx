@@ -29,13 +29,44 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 
 export default function AuthPage() {
   const [activeTab, setActiveTab] = useState("login");
+  const [generatedUsername, setGeneratedUsername] = useState<string | null>(null);
   const { login, register, user } = useAuth();
   const [, setLocation] = useLocation();
   const { data: universities, isLoading: unisLoading } = useUniversities();
 
-  if (user) {
+  if (user && !generatedUsername) {
     setLocation(`/u/${user.universityId}`);
     return null;
+  }
+
+  if (generatedUsername) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-neutral-50 p-6">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <div className="mx-auto w-12 h-12 bg-black text-white rounded-full flex items-center justify-center mb-4">
+              <GraduationCap className="w-6 h-6" />
+            </div>
+            <CardTitle className="text-2xl">Welcome to nerdds!</CardTitle>
+            <CardDescription>Your account has been created successfully.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="p-4 bg-neutral-100 rounded-lg text-center">
+              <p className="text-sm text-muted-foreground mb-1">Your auto-generated username is:</p>
+              <p className="text-2xl font-mono font-bold tracking-tight">{generatedUsername}</p>
+              <p className="text-xs text-muted-foreground mt-2">Use this username to sign in next time.</p>
+            </div>
+            <Button className="w-full h-11" onClick={() => {
+              setGeneratedUsername(null);
+              setLocation(`/u/${user?.universityId}`);
+            }}>
+              Go to Campus Feed
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   return (
@@ -85,7 +116,11 @@ export default function AuthPage() {
             </TabsContent>
 
             <TabsContent value="register">
-              <RegisterForm universities={universities || []} loading={unisLoading} />
+              <RegisterForm 
+                universities={universities || []} 
+                loading={unisLoading} 
+                onUserCreated={(username) => setGeneratedUsername(username)}
+              />
             </TabsContent>
           </Tabs>
         </div>
@@ -138,7 +173,7 @@ function LoginForm() {
   );
 }
 
-function RegisterForm({ universities, loading }: { universities: any[], loading: boolean }) {
+function RegisterForm({ universities, loading, onUserCreated }: { universities: any[], loading: boolean, onUserCreated: (username: string) => void }) {
   const { register } = useAuth();
   const form = useForm({
     resolver: zodResolver(insertUserSchema),
@@ -153,10 +188,10 @@ function RegisterForm({ universities, loading }: { universities: any[], loading:
   });
 
   const onSubmit = (data: any) => {
-    // Force coercion for form select values
-    register.mutate({
-      ...data,
-      universityId: Number(data.universityId)
+    register.mutate(data, {
+      onSuccess: (user) => {
+        onUserCreated(user.username);
+      }
     });
   };
 
