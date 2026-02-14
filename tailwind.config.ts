@@ -97,10 +97,20 @@ export default {
           from: { height: "var(--radix-accordion-content-height)" },
           to: { height: "0" },
         },
+        float: {
+          "0%, 100%": { transform: "translateY(0px)", boxShadow: "0 0 0 rgba(0,0,0,0)" },
+          "50%": { transform: "translateY(-4px)", boxShadow: "0 10px 20px rgba(0,0,0,0.08)" },
+        },
+        glow: {
+          "0%, 100%": { boxShadow: "0 0 0 rgba(250, 204, 21, 0.0)" },
+          "50%": { boxShadow: "0 0 16px rgba(250, 204, 21, 0.35)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        float: "float 3.2s ease-in-out infinite",
+        glow: "glow 2.4s ease-in-out infinite",
       },
     },
   },

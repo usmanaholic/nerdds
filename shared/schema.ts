@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
@@ -75,6 +75,46 @@ export const reports = pgTable("reports", {
   targetUserId: integer("target_user_id"),
   targetPostId: integer("target_post_id"),
   reason: text("reason").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const challengeDefinitions = pgTable("challenge_definitions", {
+  id: serial("id").primaryKey(),
+  universityId: integer("university_id").notNull(),
+  key: text("key").notNull(),
+  title: text("title").notNull(),
+  description: text("description"),
+  cadence: text("cadence").notNull(),
+  kind: text("kind").notNull(),
+  config: jsonb("config").$type<Record<string, unknown>>().notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const challengeRounds = pgTable("challenge_rounds", {
+  id: serial("id").primaryKey(),
+  definitionId: integer("definition_id").notNull(),
+  universityId: integer("university_id").notNull(),
+  startsAt: timestamp("starts_at").notNull(),
+  endsAt: timestamp("ends_at").notNull(),
+  status: text("status").default("active").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const challengeVotes = pgTable("challenge_votes", {
+  id: serial("id").primaryKey(),
+  roundId: integer("round_id").notNull(),
+  userId: integer("user_id").notNull(),
+  optionKey: text("option_key").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const challengeLeaderboardEntries = pgTable("challenge_leaderboard_entries", {
+  id: serial("id").primaryKey(),
+  roundId: integer("round_id").notNull(),
+  userId: integer("user_id").notNull(),
+  score: integer("score").default(0).notNull(),
+  timeMs: integer("time_ms"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -181,3 +221,7 @@ export type DirectMessage = typeof directMessages.$inferSelect;
 export type InsertPost = z.infer<typeof insertPostSchema>;
 export type InsertComment = z.infer<typeof insertCommentSchema>;
 export type InsertMessage = z.infer<typeof insertMessageSchema>;
+export type ChallengeDefinition = typeof challengeDefinitions.$inferSelect;
+export type ChallengeRound = typeof challengeRounds.$inferSelect;
+export type ChallengeVote = typeof challengeVotes.$inferSelect;
+export type ChallengeLeaderboardEntry = typeof challengeLeaderboardEntries.$inferSelect;

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { insertUserSchema, insertPostSchema, insertCommentSchema, insertMessageSchema, users, universities, posts, comments, directMessages, User, Post, InsertUser } from './schema';
+import { insertUserSchema, insertPostSchema, insertCommentSchema, insertMessageSchema, users, universities, posts, comments, directMessages } from './schema';
 
 export const errorSchemas = {
   validation: z.object({
@@ -158,6 +158,132 @@ export const api = {
       input: insertMessageSchema,
       responses: {
         201: z.custom<typeof directMessages.$inferSelect>(),
+      },
+    },
+  },
+  challenges: {
+    active: {
+      method: 'GET' as const,
+      path: '/api/challenges/active' as const,
+      responses: {
+        200: z.object({
+          campus: z.object({
+            id: z.number(),
+            name: z.string(),
+            slug: z.string(),
+          }),
+          userPoints: z.number(),
+          challenges: z.array(z.object({
+            roundId: z.number(),
+            key: z.string(),
+            title: z.string(),
+            description: z.string().nullable(),
+            cadence: z.string(),
+            kind: z.string(),
+            prompt: z.string().nullable(),
+            expiresAt: z.string(),
+            options: z.array(z.object({
+              key: z.string(),
+              label: z.string(),
+              emoji: z.string().optional(),
+              count: z.number(),
+              percent: z.number(),
+            })).optional(),
+            history: z.array(z.object({
+              label: z.string(),
+              value: z.number(),
+            })).optional(),
+            leaderboard: z.array(z.object({
+              userId: z.number(),
+              username: z.string(),
+              score: z.number(),
+              timeMs: z.number().nullable(),
+            })).optional(),
+            meta: z.object({
+              correctOptionKey: z.string().optional(),
+              risingStar: z.object({
+                userId: z.number(),
+                username: z.string(),
+                points: z.number(),
+                cheers: z.number(),
+              }).optional(),
+              personalityResults: z.array(z.object({
+                key: z.string(),
+                label: z.string(),
+                blurb: z.string().optional(),
+              })).optional(),
+              questions: z.array(z.object({
+                prompt: z.string(),
+                options: z.array(z.string()),
+              })).optional(),
+            }).optional(),
+            userVote: z.string().nullable(),
+          })),
+        }),
+        401: errorSchemas.unauthorized,
+      },
+    },
+    submit: {
+      method: 'POST' as const,
+      path: '/api/challenges/:roundId/submit' as const,
+      input: z.object({
+        optionKey: z.string().optional(),
+        resultKey: z.string().optional(),
+        timeMs: z.number().int().positive().optional(),
+      }),
+      responses: {
+        200: z.object({
+          userPoints: z.number(),
+          challenge: z.object({
+            roundId: z.number(),
+            key: z.string(),
+            title: z.string(),
+            description: z.string().nullable(),
+            cadence: z.string(),
+            kind: z.string(),
+            prompt: z.string().nullable(),
+            expiresAt: z.string(),
+            options: z.array(z.object({
+              key: z.string(),
+              label: z.string(),
+              emoji: z.string().optional(),
+              count: z.number(),
+              percent: z.number(),
+            })).optional(),
+            history: z.array(z.object({
+              label: z.string(),
+              value: z.number(),
+            })).optional(),
+            leaderboard: z.array(z.object({
+              userId: z.number(),
+              username: z.string(),
+              score: z.number(),
+              timeMs: z.number().nullable(),
+            })).optional(),
+            meta: z.object({
+              correctOptionKey: z.string().optional(),
+              risingStar: z.object({
+                userId: z.number(),
+                username: z.string(),
+                points: z.number(),
+                cheers: z.number(),
+              }).optional(),
+              personalityResults: z.array(z.object({
+                key: z.string(),
+                label: z.string(),
+                blurb: z.string().optional(),
+              })).optional(),
+              questions: z.array(z.object({
+                prompt: z.string(),
+                options: z.array(z.string()),
+              })).optional(),
+            }).optional(),
+            userVote: z.string().nullable(),
+          }),
+        }),
+        400: errorSchemas.validation,
+        401: errorSchemas.unauthorized,
+        404: errorSchemas.notFound,
       },
     },
   },

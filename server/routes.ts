@@ -11,6 +11,7 @@ import { Strategy as LocalStrategy } from "passport-local";
 import session from "express-session";
 import bcrypt from "bcryptjs";
 import { insertUserSchema, insertPostSchema } from "@shared/schema";
+import { getActiveChallengesForUniversity, submitChallengeVote } from "./challenges";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -248,6 +249,55 @@ export async function registerRoutes(
     await storage.createUniversity("COMSATS", "comsats");
     await storage.createUniversity("GIKI", "giki");
   }
+
+  // Challenges
+  app.get(api.challenges.active.path, async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).send();
+    const user = req.user as any;
+    const university = await storage.getUniversity(user.universityId);
+    if (!university) return res.status(404).json({ message: "University not found" });
+
+    const challenges = await getActiveChallengesForUniversity(university, user.id);
+    const refreshedUser = await storage.getUser(user.id);
+
+    res.json({
+      campus: university,
+      userPoints: refreshedUser?.points ?? 0,
+      challenges,
+    });
+  });
+
+  app.post(api.challenges.submit.path, async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).send();
+    const user = req.user as any;
+
+    try {
+      const payload = api.challenges.submit.input.parse(req.body ?? {});
+      const roundId = Number(req.params.roundId);
+      if (!Number.isFinite(roundId)) {
+        return res.status(400).json({ message: "Invalid round id" });
+      }
+
+      const result = await submitChallengeVote({
+        roundId,
+        userId: user.id,
+        optionKey: payload.optionKey,
+        resultKey: payload.resultKey,
+        timeMs: payload.timeMs,
+      });
+
+      if (!result) {
+        return res.status(404).json({ message: "Challenge round not found" });
+      }
+
+      res.json(result);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      res.status(500).json({ message: "Internal Server Error" });
+    }
+  });
 
   return httpServer;
 }
