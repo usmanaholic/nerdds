@@ -18,6 +18,14 @@ export function PostCard({ post }: PostCardProps) {
     likeMutation.mutate(post.id);
   };
 
+  const postImageSrc = post.image
+    ? post.image.startsWith("http")
+      ? post.image
+      : post.image.startsWith("/")
+        ? post.image
+        : `/${post.image}`
+    : undefined;
+
   return (
     <div className="bg-white border rounded-none md:rounded-2xl overflow-hidden mb-4 md:shadow-sm transition-shadow hover:shadow-md">
       {/* Header */}
@@ -52,9 +60,9 @@ export function PostCard({ post }: PostCardProps) {
       {/* Content */}
       <Link href={`/posts/${post.id}`}>
         <div className="cursor-pointer">
-          {post.image && (
+          {postImageSrc && (
             <div className="aspect-video w-full bg-secondary overflow-hidden">
-              <img src={post.image} alt="Post content" className="w-full h-full object-cover" />
+              <img src={postImageSrc} alt="Post content" className="w-full h-full object-cover" />
             </div>
           )}
           <div className="p-4 pt-2">

@@ -158,19 +158,9 @@ export async function registerRoutes(
 
   // Posts
   app.get(api.posts.list.path, async (req, res) => {
-    let universityId: number | undefined;
-    
-    // Check query param first (for public view of specific uni)
-    if (req.query.universityId) {
-      universityId = Number(req.query.universityId);
-    } else if (req.isAuthenticated()) {
-      // Fallback to logged-in user's university
-      universityId = (req.user as any).universityId;
-    }
-
-    if (!universityId) {
-      return res.status(400).json({ message: "University ID required" });
-    }
+    const universityId = req.query.universityId
+      ? Number(req.query.universityId)
+      : undefined;
 
     const posts = await storage.getPosts(universityId);
     res.json(posts);

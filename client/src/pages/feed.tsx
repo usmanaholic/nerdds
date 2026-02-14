@@ -9,10 +9,7 @@ import { Button } from "@/components/ui/button";
 export default function FeedPage() {
   const { user } = useAuth();
   const [selectedTag, setSelectedTag] = useState<string | undefined>(undefined);
-  const { data: posts, isLoading } = usePosts({ 
-    universityId: user?.universityId,
-    tag: selectedTag 
-  });
+  const { data: posts, isLoading } = usePosts({ tag: selectedTag });
 
   const tags = ["All", "General", "Question", "Event", "Confession", "Meme"];
 
