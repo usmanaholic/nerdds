@@ -24,7 +24,8 @@ app.use(
 
 app.use(express.urlencoded({ extended: false }));
 
-app.use("/uploads", express.static(path.resolve(process.cwd(), "uploads")));
+const uploadsDir = path.resolve(import.meta.dirname, "..", "uploads");
+app.use("/uploads", express.static(uploadsDir));
 
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {

@@ -76,7 +76,6 @@ export class DatabaseStorage implements IStorage {
         CREATE INDEX IF NOT EXISTS "IDX_session_expire" ON "session" ("expire");
       `);
       
-      console.log('✅ Session table verified/created');
     } catch (err) {
       console.error('❌ Session table creation failed:', err);
       // Don't throw - let the app start anyway
