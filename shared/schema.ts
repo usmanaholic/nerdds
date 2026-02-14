@@ -156,6 +156,7 @@ export const insertPostSchema = createInsertSchema(posts).omit({
   commentsCount: true,
   savesCount: true,
   authorId: true, // set by session
+  universityId: true, // set by session
 });
 
 export const insertCommentSchema = createInsertSchema(comments).omit({

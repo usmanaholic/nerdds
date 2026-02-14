@@ -17,7 +17,7 @@ export function usePosts(params?: { universityId?: number; tag?: string }) {
         url += `?${queryParams.toString()}`;
       }
       
-      const res = await fetch(url);
+      const res = await fetch(url, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch posts");
       return api.posts.list.responses[200].parse(await res.json());
     },
@@ -30,7 +30,7 @@ export function usePost(id: number) {
     queryKey: [api.posts.get.path, id],
     queryFn: async () => {
       const url = buildUrl(api.posts.get.path, { id });
-      const res = await fetch(url);
+      const res = await fetch(url, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch post");
       return api.posts.get.responses[200].parse(await res.json());
     },
@@ -45,12 +45,30 @@ export function useCreatePost() {
   
   return useMutation({
     mutationFn: async (data: z.infer<typeof api.posts.create.input>) => {
+      const payload = {
+        ...data,
+        content: data.content?.trim(),
+      };
       const res = await fetch(api.posts.create.path, {
         method: api.posts.create.method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify(payload),
+        credentials: "include",
       });
-      if (!res.ok) throw new Error("Failed to create post");
+      if (!res.ok) {
+        let errorText = "Failed to create post";
+        try {
+          const json = await res.json();
+          errorText = json?.message || errorText;
+          if (json?.field) {
+            errorText = `${errorText}: ${json.field}`;
+          }
+        } catch {
+          const text = await res.text();
+          if (text) errorText = text;
+        }
+        throw new Error(errorText);
+      }
       return api.posts.create.responses[201].parse(await res.json());
     },
     onSuccess: () => {
@@ -70,7 +88,7 @@ export function useLikePost() {
   return useMutation({
     mutationFn: async (postId: number) => {
       const url = buildUrl(api.posts.like.path, { id: postId });
-      const res = await fetch(url, { method: api.posts.like.method });
+      const res = await fetch(url, { method: api.posts.like.method, credentials: "include" });
       if (!res.ok) throw new Error("Failed to like post");
       return api.posts.like.responses[200].parse(await res.json());
     },
@@ -87,7 +105,7 @@ export function useComments(postId: number) {
     queryKey: [api.comments.list.path, postId],
     queryFn: async () => {
       const url = buildUrl(api.comments.list.path, { postId });
-      const res = await fetch(url);
+      const res = await fetch(url, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch comments");
       return api.comments.list.responses[200].parse(await res.json());
     },
@@ -106,6 +124,7 @@ export function useCreateComment() {
         method: api.comments.create.method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content }),
+        credentials: "include",
       });
       if (!res.ok) throw new Error("Failed to add comment");
       return api.comments.create.responses[201].parse(await res.json());

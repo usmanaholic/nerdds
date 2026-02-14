@@ -12,6 +12,7 @@ import FeedPage from "@/pages/feed";
 import PostDetailPage from "@/pages/post-detail";
 import ProfilePage from "@/pages/profile";
 import MessagesPage from "@/pages/messages";
+import CreatePostPage from "@/pages/create-post";
 import LayoutShell from "@/components/layout-shell";
 
 function Router() {
@@ -35,6 +36,7 @@ function Router() {
         <Route path="/" component={FeedPage} />
         <Route path="/u/:universityId" component={FeedPage} />
         <Route path="/posts/:id" component={PostDetailPage} />
+        <Route path="/create" component={CreatePostPage} />
         <Route path="/profile/:username" component={ProfilePage} />
         <Route path="/messages" component={MessagesPage} />
         <Route component={NotFound} />

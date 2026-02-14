@@ -3,6 +3,9 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
+import fs from "fs";
+import path from "path";
+import multer from "multer";
 import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
 import session from "express-session";
@@ -13,6 +16,29 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+  const uploadsDir = path.resolve(process.cwd(), "uploads");
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+  }
+
+  const upload = multer({
+    storage: multer.diskStorage({
+      destination: uploadsDir,
+      filename: (_req, file, cb) => {
+        const ext = path.extname(file.originalname || "");
+        const safeName = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
+        cb(null, safeName);
+      },
+    }),
+    limits: { fileSize: 5 * 1024 * 1024 },
+    fileFilter: (_req, file, cb) => {
+      if (!file.mimetype.startsWith("image/")) {
+        cb(new Error("Only image uploads are allowed"));
+        return;
+      }
+      cb(null, true);
+    },
+  });
   // Auth Setup
   app.use(
     session({
@@ -119,6 +145,13 @@ export async function registerRoutes(
     res.json(unis);
   });
 
+  // Uploads
+  app.post("/api/uploads", upload.single("image"), async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).send();
+    if (!req.file) return res.status(400).json({ message: "Image required" });
+    res.status(201).json({ url: `/uploads/${req.file.filename}` });
+  });
+
   // Posts
   app.get(api.posts.list.path, async (req, res) => {
     let universityId: number | undefined;
@@ -143,7 +176,17 @@ export async function registerRoutes(
     if (!req.isAuthenticated()) return res.status(401).send();
     try {
       const user = req.user as any;
-      const validatedData = insertPostSchema.parse(req.body);
+      const normalizedTags = Array.isArray(req.body?.tags)
+        ? req.body.tags
+        : req.body?.tags
+          ? [String(req.body.tags)]
+          : undefined;
+      const payload = {
+        ...req.body,
+        type: req.body?.type ?? "text",
+        tags: normalizedTags,
+      };
+      const validatedData = insertPostSchema.parse(payload);
 
       const post = await storage.createPost({
         ...validatedData,
@@ -156,7 +199,10 @@ export async function registerRoutes(
       res.status(201).json(post);
     } catch (err) {
       if (err instanceof z.ZodError) {
-        return res.status(400).json({ message: err.errors[0].message });
+        return res.status(400).json({
+          message: err.errors[0].message,
+          field: err.errors[0].path?.[0],
+        });
       }
       res.status(500).json({ message: "Internal Server Error" });
     }
