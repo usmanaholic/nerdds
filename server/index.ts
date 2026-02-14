@@ -24,7 +24,7 @@ app.use(
 
 app.use(express.urlencoded({ extended: false }));
 
-const uploadsDir = path.resolve(import.meta.dirname, "..", "uploads");
+const uploadsDir = path.resolve(process.cwd(), "uploads");
 app.use("/uploads", express.static(uploadsDir));
 
 export function log(message: string, source = "express") {

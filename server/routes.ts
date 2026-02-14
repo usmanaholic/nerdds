@@ -17,7 +17,7 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
-  const uploadsDir = path.resolve(import.meta.dirname, "..", "uploads");
+  const uploadsDir = path.resolve(process.cwd(), "uploads");
   if (!fs.existsSync(uploadsDir)) {
     fs.mkdirSync(uploadsDir, { recursive: true });
   }
