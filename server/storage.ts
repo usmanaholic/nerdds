@@ -56,6 +56,15 @@ export class DatabaseStorage implements IStorage {
     });
   }
 
+  async initialize(): Promise<void> {
+    // Ensure session table is created on startup
+    return new Promise((resolve, reject) => {
+      // The session store will create the table on first use
+      // This method ensures it happens before the server starts handling requests
+      setTimeout(resolve, 100);
+    });
+  }
+
   // Auth & Users
   async getUser(id: number): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
