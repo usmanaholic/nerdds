@@ -19,9 +19,20 @@ export function useChallenges() {
   const challengesQuery = useQuery({
     queryKey: [api.challenges.active.path],
     queryFn: async () => {
-      const res = await fetch(api.challenges.active.path, { credentials: "include" });
-      if (!res.ok) throw new Error("Failed to fetch challenges");
-      return api.challenges.active.responses[200].parse(await res.json());
+      try {
+        const res = await fetch(api.challenges.active.path, { credentials: "include" });
+        if (!res.ok) {
+          const error = await res.text();
+          console.error("Challenges fetch failed:", res.status, error);
+          throw new Error(`Failed to fetch challenges: ${res.status}`);
+        }
+        const data = await res.json();
+        console.log("Challenges loaded:", data);
+        return api.challenges.active.responses[200].parse(data);
+      } catch (err) {
+        console.error("Challenges error:", err);
+        throw err;
+      }
     },
   });
 

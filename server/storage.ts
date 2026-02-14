@@ -57,12 +57,30 @@ export class DatabaseStorage implements IStorage {
   }
 
   async initialize(): Promise<void> {
-    // Ensure session table is created on startup
-    return new Promise((resolve, reject) => {
-      // The session store will create the table on first use
-      // This method ensures it happens before the server starts handling requests
-      setTimeout(resolve, 100);
-    });
+    // Ensure session table exists before app starts
+    try {
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS "session" (
+          "sid" varchar NOT NULL COLLATE "default",
+          "sess" json NOT NULL,
+          "expire" timestamp(6) NOT NULL
+        )
+        WITH (OIDS=FALSE);
+      `);
+      
+      await pool.query(`
+        ALTER TABLE "session" ADD PRIMARY KEY ("sid") NOT DEFERRABLE INITIALLY IMMEDIATE;
+      `).catch(() => {/* Index might already exist */});
+      
+      await pool.query(`
+        CREATE INDEX IF NOT EXISTS "IDX_session_expire" ON "session" ("expire");
+      `);
+      
+      console.log('✅ Session table verified/created');
+    } catch (err) {
+      console.error('❌ Session table creation failed:', err);
+      // Don't throw - let the app start anyway
+    }
   }
 
   // Auth & Users

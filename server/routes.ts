@@ -48,9 +48,12 @@ export async function registerRoutes(
       saveUninitialized: false,
       store: storage.sessionStore,
       cookie: {
-        secure: app.get("env") === "production",
+        secure: process.env.NODE_ENV === "production",
+        httpOnly: true,
         maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
       },
+      proxy: process.env.NODE_ENV === "production", // Trust Render's proxy
     })
   );
 
