@@ -1,7 +1,7 @@
 import { drizzle } from "drizzle-orm/node-postgres";
 import pg from "pg";
 import * as schema from "../shared/schema";
-import { universities, users, posts, comments, likes, follows } from "../shared/schema";
+import { universities, users, posts, comments, likes, follows, challengeDefinitions, challengeRounds } from "../shared/schema";
 import bcryptjs from "bcryptjs";
 import "dotenv/config";
 
@@ -309,6 +309,92 @@ async function seed() {
         .onConflictDoNothing();
     }
 
+    // Create challenges for Stanford University
+    console.log("🎯 Creating challenges...");
+    
+    const challengeTemplates = [
+      {
+        universityId: stanfordId,
+        key: "mood",
+        title: "Campus Mood",
+        description: "Vote daily and see the energy shift.",
+        cadence: "daily",
+        kind: "vote",
+        config: {
+          prompt: "Today's Campus Energy",
+          points: 2,
+          historyOptionKey: "vibing",
+          options: [
+            { key: "dead", label: "Dead", emoji: "😴" },
+            { key: "chill", label: "Chill", emoji: "😐" },
+            { key: "grind", label: "Academic Grind", emoji: "📚" },
+            { key: "vibing", label: "Vibing", emoji: "🎉" },
+            { key: "midterm", label: "Midterm Survival", emoji: "💀" },
+          ],
+        },
+      },
+      {
+        universityId: stanfordId,
+        key: "this-or-that",
+        title: "This or That",
+        description: "Daily micro-poll, instant results.",
+        cadence: "daily",
+        kind: "vote",
+        config: {
+          prompt: "Coffee or Tea?",
+          points: 2,
+          options: [
+            { key: "option-a", label: "Coffee" },
+            { key: "option-b", label: "Tea" },
+          ],
+        },
+      },
+      {
+        universityId: stanfordId,
+        key: "dept",
+        title: "Department Wars",
+        description: "Weekly rivalry for campus pride.",
+        cadence: "weekly",
+        kind: "vote",
+        config: {
+          prompt: "Which department runs Stanford?",
+          points: 2,
+          options: [
+            { key: "cs", label: "Computer Science" },
+            { key: "engineering", label: "Engineering" },
+            { key: "business", label: "Business" },
+            { key: "liberal-arts", label: "Liberal Arts" },
+          ],
+        },
+      },
+    ];
+
+    const createdChallenges = await db
+      .insert(challengeDefinitions)
+      .values(challengeTemplates)
+      .onConflictDoNothing()
+      .returning();
+
+    // Create challenge rounds for today
+    if (createdChallenges.length > 0) {
+      const now = new Date();
+      const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
+
+      const roundsToCreate = createdChallenges.map((challenge) => ({
+        definitionId: challenge.id,
+        universityId: challenge.universityId,
+        startsAt: startOfDay,
+        endsAt: endOfDay,
+        status: "active" as const,
+      }));
+
+      await db
+        .insert(challengeRounds)
+        .values(roundsToCreate)
+        .onConflictDoNothing();
+    }
+
     console.log("✅ Seed completed successfully!");
     console.log("\n📊 Dummy Data Summary:");
     console.log("- 4 Universities");
@@ -316,6 +402,7 @@ async function seed() {
     console.log("- 10 Posts");
     console.log("- 7 Follows");
     console.log("- Multiple likes and comments");
+    console.log("- Challenge definitions and rounds");
     console.log(
       "\n💡 You can now log in with:\nEmail: alice@stanford.edu\nPassword: password123"
     );
