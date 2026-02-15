@@ -166,6 +166,12 @@ export async function registerRoutes(
     res.json(posts);
   });
 
+  app.get(api.posts.get.path, async (req, res) => {
+    const post = await storage.getPost(Number(req.params.id));
+    if (!post) return res.status(404).json({ message: "Post not found" });
+    res.json(post);
+  });
+
   app.post(api.posts.create.path, async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).send();
     try {
