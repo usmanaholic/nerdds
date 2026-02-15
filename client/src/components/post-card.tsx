@@ -19,7 +19,7 @@ export function PostCard({ post }: PostCardProps) {
   };
 
   const postImageSrc = post.image
-    ? post.image.startsWith("http")
+    ? post.image.startsWith("http") || post.image.startsWith("data:")
       ? post.image
       : post.image.startsWith("/")
         ? post.image

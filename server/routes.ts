@@ -3,8 +3,6 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
-import fs from "fs";
-import path from "path";
 import multer from "multer";
 import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
@@ -12,25 +10,21 @@ import session from "express-session";
 import bcrypt from "bcryptjs";
 import { insertUserSchema, insertPostSchema } from "@shared/schema";
 import { getActiveChallengesForUniversity, submitChallengeVote } from "./challenges";
+import { v2 as cloudinary } from "cloudinary";
+
+// Configure Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
-  const uploadsDir = path.resolve(process.cwd(), "uploads");
-  if (!fs.existsSync(uploadsDir)) {
-    fs.mkdirSync(uploadsDir, { recursive: true });
-  }
-
   const upload = multer({
-    storage: multer.diskStorage({
-      destination: uploadsDir,
-      filename: (_req, file, cb) => {
-        const ext = path.extname(file.originalname || "");
-        const safeName = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
-        cb(null, safeName);
-      },
-    }),
+    storage: multer.memoryStorage(),
     limits: { fileSize: 5 * 1024 * 1024 },
     fileFilter: (_req, file, cb) => {
       if (!file.mimetype.startsWith("image/")) {
@@ -153,7 +147,35 @@ export async function registerRoutes(
   app.post("/api/uploads", upload.single("image"), async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).send();
     if (!req.file) return res.status(400).json({ message: "Image required" });
-    res.status(201).json({ url: `/uploads/${req.file.filename}` });
+    
+    try {
+      // Upload to Cloudinary
+      const uploadPromise = new Promise<string>((resolve, reject) => {
+        const uploadStream = cloudinary.uploader.upload_stream(
+          {
+            folder: "campus-connect",
+            resource_type: "image",
+            transformation: [
+              { width: 1200, height: 1200, crop: "limit" },
+              { quality: "auto:good" },
+              { fetch_format: "auto" }
+            ]
+          },
+          (error, result) => {
+            if (error) reject(error);
+            else if (result) resolve(result.secure_url);
+            else reject(new Error("Upload failed"));
+          }
+        );
+        uploadStream.end(req.file!.buffer);
+      });
+
+      const imageUrl = await uploadPromise;
+      res.status(201).json({ url: imageUrl });
+    } catch (error) {
+      console.error("Cloudinary upload error:", error);
+      res.status(500).json({ message: "Failed to upload image" });
+    }
   });
 
   // Posts
