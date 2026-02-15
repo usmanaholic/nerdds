@@ -103,6 +103,23 @@ export const api = {
       },
     },
   },
+  explore: {
+    data: {
+      method: 'GET' as const,
+      path: '/api/explore' as const,
+      responses: {
+        200: z.object({
+          trending: z.array(z.custom<typeof posts.$inferSelect & { author: typeof users.$inferSelect }>()),
+          suggestedUsers: z.array(z.custom<typeof users.$inferSelect>()),
+          hotTopics: z.array(z.object({
+            hashtag: z.string(),
+            count: z.number(),
+          })),
+        }),
+        401: errorSchemas.unauthorized,
+      },
+    },
+  },
   comments: {
     list: {
       method: 'GET' as const,

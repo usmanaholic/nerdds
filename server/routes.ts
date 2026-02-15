@@ -262,6 +262,14 @@ export async function registerRoutes(
     res.json(user);
   });
 
+  // Explore
+  app.get(api.explore.data.path, async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).send();
+    const user = req.user as any;
+    const exploreData = await storage.getExploreData(user.id);
+    res.json(exploreData);
+  });
+
   // Seed Data
   if ((await storage.getUniversities()).length === 0) {
     await storage.createUniversity("NUST", "nust");

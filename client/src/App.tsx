@@ -14,7 +14,7 @@ import ProfilePage from "@/pages/profile";
 import MessagesPage from "@/pages/messages";
 import CreatePostPage from "@/pages/create-post";
 import LayoutShell from "@/components/layout-shell";
-
+import ExplorePage from "@/pages/explore";
 function Router() {
   const { user, isLoading } = useAuth();
 
@@ -39,6 +39,7 @@ function Router() {
         <Route path="/create" component={CreatePostPage} />
         <Route path="/profile/:username" component={ProfilePage} />
         <Route path="/messages" component={MessagesPage} />
+        <Route path="/explore" component={ExplorePage} />
         <Route component={NotFound} />
       </Switch>
     </LayoutShell>

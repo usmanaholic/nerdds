@@ -44,6 +44,13 @@ export interface IStorage {
 
   // Gamification
   updateUserPoints(userId: number, points: number): Promise<void>;
+
+  // Explore
+  getExploreData(userId: number): Promise<{
+    trending: (Post & { author: User })[];
+    suggestedUsers: User[];
+    hotTopics: Array<{ hashtag: string; count: number }>;
+  }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -286,6 +293,89 @@ export class DatabaseStorage implements IStorage {
         await db.update(users).set({ level: newLevel }).where(eq(users.id, userId));
       }
     }
+  }
+
+  // Explore
+  async getExploreData(userId: number): Promise<{
+    trending: (Post & { author: User })[];
+    suggestedUsers: User[];
+    hotTopics: Array<{ hashtag: string; count: number }>;
+  }> {
+    const currentUser = await this.getUser(userId);
+    if (!currentUser) {
+      return { trending: [], suggestedUsers: [], hotTopics: [] };
+    }
+
+    // Get trending posts (most liked/commented in last 24h)
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const trendingResults = await db.select({
+      id: posts.id,
+      authorId: posts.authorId,
+      universityId: posts.universityId,
+      content: posts.content,
+      image: posts.image,
+      type: posts.type,
+      tags: posts.tags,
+      likesCount: posts.likesCount,
+      commentsCount: posts.commentsCount,
+      savesCount: posts.savesCount,
+      createdAt: posts.createdAt,
+      author: users,
+    })
+      .from(posts)
+      .innerJoin(users, eq(posts.authorId, users.id))
+      .where(
+        and(
+          eq(posts.universityId, currentUser.universityId),
+          sql`${posts.createdAt} > ${oneDayAgo}`
+        )
+      )
+      .orderBy(sql`${posts.likesCount} + ${posts.commentsCount} * 2 DESC`)
+      .limit(10);
+
+    const trending = trendingResults.map(r => ({
+      ...r,
+      author: r.author,
+    }));
+
+    // Get suggested users (from same university, most followers, not following)
+    const suggestedUsersResults = await db.select().from(users)
+      .where(
+        and(
+          eq(users.universityId, currentUser.universityId),
+          sql`${users.id} != ${userId}`,
+          sql`${users.followersCount} > 0`
+        )
+      )
+      .orderBy(desc(users.followersCount))
+      .limit(6);
+
+    // Get hot topics (extract hashtags from posts)
+    const allPostsForHashtags = await db.select({ tags: posts.tags })
+      .from(posts)
+      .where(eq(posts.universityId, currentUser.universityId))
+      .limit(100);
+
+    const hashtagMap = new Map<string, number>();
+    allPostsForHashtags.forEach(post => {
+      if (post.tags && Array.isArray(post.tags)) {
+        post.tags.forEach(tag => {
+          const hashtag = tag.toLowerCase();
+          hashtagMap.set(hashtag, (hashtagMap.get(hashtag) || 0) + 1);
+        });
+      }
+    });
+
+    const hotTopics = Array.from(hashtagMap.entries())
+      .map(([hashtag, count]) => ({ hashtag, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 8);
+
+    return {
+      trending,
+      suggestedUsers: suggestedUsersResults,
+      hotTopics,
+    };
   }
 }
 
