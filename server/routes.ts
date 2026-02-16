@@ -8,9 +8,20 @@ import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
 import session from "express-session";
 import bcrypt from "bcryptjs";
-import { insertUserSchema, insertPostSchema } from "@shared/schema";
+import { 
+  insertUserSchema, insertPostSchema,
+  insertSnackRequestSchema, insertSnackRatingSchema, insertSnackReportSchema,
+} from "@shared/schema";
 import { getActiveChallengesForUniversity, submitChallengeVote } from "./challenges";
 import { v2 as cloudinary } from "cloudinary";
+import { 
+  attemptMatch, 
+  cancelSnackRequest, 
+  submitRating, 
+  reportUser, 
+  blockUser,
+  extendSnackSession,
+} from "./snack-matching";
 
 // Configure Cloudinary
 cloudinary.config({
@@ -324,6 +335,277 @@ export async function registerRoutes(
       if (err instanceof z.ZodError) {
         return res.status(400).json({ message: err.errors[0].message });
       }
+      res.status(500).json({ message: "Internal Server Error" });
+    }
+  });
+
+  // Snack Routes
+  app.post(api.snack.createRequest.path, async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).send();
+    
+    try {
+      const user = req.user as any;
+      const validatedData = insertSnackRequestSchema.parse(req.body);
+
+      // Check if user already has an active request
+      const existingRequest = await storage.getMyActiveSnackRequest(user.id);
+      if (existingRequest) {
+        return res.status(400).json({ message: "You already have an active snack request" });
+      }
+
+      // Check if user is already in an active session
+      const existingSession = await storage.getMyActiveSnackSession(user.id);
+      if (existingSession) {
+        return res.status(400).json({ message: "You are already in an active snack session" });
+      }
+
+      // Create the request
+      const request = await storage.createSnackRequest({
+        snackType: validatedData.snackType,
+        topic: validatedData.topic ?? null,
+        duration: validatedData.duration,
+        tags: validatedData.tags ?? null,
+        location: validatedData.location ?? null,
+        createdBy: user.id,
+        status: "waiting",
+      });
+
+      // Attempt to find a match
+      const matchResult = await attemptMatch(request.id);
+
+      if (matchResult) {
+        // Match found!
+        return res.status(201).json({
+          request,
+          matched: true,
+          session: matchResult.session,
+        });
+      } else {
+        // No match yet, user is in waiting queue
+        return res.status(201).json({
+          request,
+          matched: false,
+        });
+      }
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({
+          message: err.errors[0].message,
+          field: err.errors[0].path?.[0],
+        });
+      }
+      console.error("Snack request creation error:", err);
+      res.status(500).json({ message: "Internal Server Error" });
+    }
+  });
+
+  app.delete(api.snack.cancelRequest.path, async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).send();
+    const user = req.user as any;
+
+    try {
+      const requestId = Number(req.params.id);
+      const success = await cancelSnackRequest(requestId, user.id);
+
+      if (success) {
+        res.json({ success: true });
+      } else {
+        res.status(404).json({ message: "Request not found or cannot be cancelled" });
+      }
+    } catch (err) {
+      console.error("Cancel snack request error:", err);
+      res.status(500).json({ message: "Internal Server Error" });
+    }
+  });
+
+  app.get(api.snack.getMatchStatus.path, async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).send();
+    const user = req.user as any;
+
+    try {
+      const activeRequest = await storage.getMyActiveSnackRequest(user.id);
+      const activeSession = await storage.getMyActiveSnackSession(user.id);
+
+      res.json({
+        hasActiveRequest: !!activeRequest,
+        request: activeRequest,
+        hasActiveSession: !!activeSession,
+        session: activeSession,
+      });
+    } catch (err) {
+      console.error("Get match status error:", err);
+      res.status(500).json({ message: "Internal Server Error" });
+    }
+  });
+
+  app.post(api.snack.rate.path, async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).send();
+    const user = req.user as any;
+
+    try {
+      const validatedData = insertSnackRatingSchema.parse(req.body);
+      const session = await submitRating(
+        validatedData.sessionId,
+        user.id,
+        validatedData.rating
+      );
+
+      if (session) {
+        res.json({ success: true, session });
+      } else {
+        res.status(404).json({ message: "Session not found or you are not part of this session" });
+      }
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({
+          message: err.errors[0].message,
+          field: err.errors[0].path?.[0],
+        });
+      }
+      console.error("Submit rating error:", err);
+      res.status(500).json({ message: "Internal Server Error" });
+    }
+  });
+
+  app.post(api.snack.report.path, async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).send();
+    const user = req.user as any;
+
+    try {
+      const validatedData = insertSnackReportSchema.parse({
+        ...req.body,
+        reporterId: user.id,
+      });
+
+      await reportUser(
+        user.id,
+        validatedData.reportedId,
+        validatedData.sessionId || null,
+        validatedData.reason,
+        validatedData.description || null
+      );
+
+      res.status(201).json({ success: true });
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({
+          message: err.errors[0].message,
+          field: err.errors[0].path?.[0],
+        });
+      }
+      console.error("Report user error:", err);
+      res.status(500).json({ message: "Internal Server Error" });
+    }
+  });
+
+  app.post(api.snack.block.path, async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).send();
+    const user = req.user as any;
+
+    try {
+      const { userId } = z.object({ userId: z.number() }).parse(req.body);
+      await blockUser(user.id, userId);
+      res.json({ success: true });
+    } catch (err) {
+      console.error("Block user error:", err);
+      res.status(500).json({ message: "Internal Server Error" });
+    }
+  });
+
+  app.get(api.snack.getMessages.path, async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).send();
+    const user = req.user as any;
+
+    try {
+      const sessionId = Number(req.params.sessionId);
+      const session = await storage.getSnackSession(sessionId);
+
+      if (!session) {
+        return res.status(404).json({ message: "Session not found" });
+      }
+
+      // Verify user is part of session
+      if (session.user1Id !== user.id && session.user2Id !== user.id) {
+        return res.status(403).json({ message: "You are not part of this session" });
+      }
+
+      const messages = await storage.getSnackMessages(sessionId);
+      res.json(messages);
+    } catch (err) {
+      console.error("Get snack messages error:", err);
+      res.status(500).json({ message: "Internal Server Error" });
+    }
+  });
+
+  app.post(api.snack.sendMessage.path, async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).send();
+    const user = req.user as any;
+
+    try {
+      const sessionId = Number(req.params.sessionId);
+      const { content } = z.object({ content: z.string().min(1).max(500) }).parse(req.body);
+
+      const session = await storage.getSnackSession(sessionId);
+
+      if (!session) {
+        return res.status(404).json({ message: "Session not found" });
+      }
+
+      // Verify user is part of session
+      if (session.user1Id !== user.id && session.user2Id !== user.id) {
+        return res.status(403).json({ message: "You are not part of this session" });
+      }
+
+      // Verify session is active
+      if (session.status === "ended") {
+        return res.status(400).json({ message: "This session has ended" });
+      }
+
+      const message = await storage.createSnackMessage({
+        sessionId,
+        senderId: user.id,
+        content,
+      });
+
+      res.status(201).json(message);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({
+          message: err.errors[0].message,
+          field: err.errors[0].path?.[0],
+        });
+      }
+      console.error("Send snack message error:", err);
+      res.status(500).json({ message: "Internal Server Error" });
+    }
+  });
+
+  app.post(api.snack.extendSession.path, async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).send();
+    const user = req.user as any;
+
+    try {
+      const sessionId = Number(req.params.sessionId);
+      const session = await storage.getSnackSession(sessionId);
+
+      if (!session) {
+        return res.status(404).json({ message: "Session not found" });
+      }
+
+      // Verify user is part of session
+      if (session.user1Id !== user.id && session.user2Id !== user.id) {
+        return res.status(403).json({ message: "You are not part of this session" });
+      }
+
+      const extendedSession = await extendSnackSession(sessionId);
+
+      if (extendedSession) {
+        res.json({ success: true, session: extendedSession });
+      } else {
+        res.status(400).json({ message: "Cannot extend session" });
+      }
+    } catch (err) {
+      console.error("Extend session error:", err);
       res.status(500).json({ message: "Internal Server Error" });
     }
   });

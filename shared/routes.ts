@@ -1,5 +1,10 @@
 import { z } from 'zod';
-import { insertUserSchema, insertPostSchema, insertCommentSchema, insertMessageSchema, users, universities, posts, comments, directMessages } from './schema';
+import { 
+  insertUserSchema, insertPostSchema, insertCommentSchema, insertMessageSchema, 
+  insertSnackRequestSchema, insertSnackRatingSchema, insertSnackReportSchema,
+  users, universities, posts, comments, directMessages,
+  snackRequests, snackSessions, snackMessages,
+} from './schema';
 
 export const errorSchemas = {
   validation: z.object({
@@ -299,6 +304,115 @@ export const api = {
           }),
         }),
         400: errorSchemas.validation,
+        401: errorSchemas.unauthorized,
+        404: errorSchemas.notFound,
+      },
+    },
+  },
+  snack: {
+    createRequest: {
+      method: 'POST' as const,
+      path: '/api/snack/request' as const,
+      input: insertSnackRequestSchema,
+      responses: {
+        201: z.object({
+          request: z.custom<typeof snackRequests.$inferSelect>(),
+          matched: z.boolean(),
+          session: z.custom<typeof snackSessions.$inferSelect & { 
+            user1: typeof users.$inferSelect; 
+            user2: typeof users.$inferSelect;
+          }>().optional(),
+        }),
+        400: errorSchemas.validation,
+        401: errorSchemas.unauthorized,
+      },
+    },
+    cancelRequest: {
+      method: 'DELETE' as const,
+      path: '/api/snack/request/:id' as const,
+      responses: {
+        200: z.object({ success: z.boolean() }),
+        401: errorSchemas.unauthorized,
+        404: errorSchemas.notFound,
+      },
+    },
+    getMatchStatus: {
+      method: 'GET' as const,
+      path: '/api/snack/match-status' as const,
+      responses: {
+        200: z.object({
+          hasActiveRequest: z.boolean(),
+          request: z.custom<typeof snackRequests.$inferSelect>().optional(),
+          hasActiveSession: z.boolean(),
+          session: z.custom<typeof snackSessions.$inferSelect & { 
+            user1: typeof users.$inferSelect; 
+            user2: typeof users.$inferSelect;
+          }>().optional(),
+        }),
+        401: errorSchemas.unauthorized,
+      },
+    },
+    rate: {
+      method: 'POST' as const,
+      path: '/api/snack/rate' as const,
+      input: insertSnackRatingSchema,
+      responses: {
+        200: z.object({ 
+          success: z.boolean(),
+          session: z.custom<typeof snackSessions.$inferSelect>(),
+        }),
+        400: errorSchemas.validation,
+        401: errorSchemas.unauthorized,
+        404: errorSchemas.notFound,
+      },
+    },
+    report: {
+      method: 'POST' as const,
+      path: '/api/snack/report' as const,
+      input: insertSnackReportSchema,
+      responses: {
+        201: z.object({ success: z.boolean() }),
+        400: errorSchemas.validation,
+        401: errorSchemas.unauthorized,
+      },
+    },
+    block: {
+      method: 'POST' as const,
+      path: '/api/snack/block' as const,
+      input: z.object({ userId: z.number() }),
+      responses: {
+        200: z.object({ success: z.boolean() }),
+        401: errorSchemas.unauthorized,
+      },
+    },
+    getMessages: {
+      method: 'GET' as const,
+      path: '/api/snack/session/:sessionId/messages' as const,
+      responses: {
+        200: z.array(z.custom<typeof snackMessages.$inferSelect & { sender: typeof users.$inferSelect }>()),
+        401: errorSchemas.unauthorized,
+        404: errorSchemas.notFound,
+      },
+    },
+    sendMessage: {
+      method: 'POST' as const,
+      path: '/api/snack/session/:sessionId/message' as const,
+      input: z.object({ content: z.string().min(1).max(500) }),
+      responses: {
+        201: z.custom<typeof snackMessages.$inferSelect>(),
+        400: errorSchemas.validation,
+        401: errorSchemas.unauthorized,
+        404: errorSchemas.notFound,
+      },
+    },
+    extendSession: {
+      method: 'POST' as const,
+      path: '/api/snack/session/:sessionId/extend' as const,
+      responses: {
+        200: z.object({ 
+          success: z.boolean(),
+          session: z.custom<typeof snackSessions.$inferSelect>(),
+        }),
         401: errorSchemas.unauthorized,
         404: errorSchemas.notFound,
       },

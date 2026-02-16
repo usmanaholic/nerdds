@@ -24,6 +24,8 @@ export const users = pgTable("users", {
   followersCount: integer("followers_count").default(0).notNull(),
   followingCount: integer("following_count").default(0).notNull(),
   isBlocked: boolean("is_blocked").default(false).notNull(),
+  snackScore: integer("snack_score").default(0),
+  snackCount: integer("snack_count").default(0),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -118,6 +120,62 @@ export const challengeLeaderboardEntries = pgTable("challenge_leaderboard_entrie
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// Snack Feature Tables
+export const snackRequests = pgTable("snack_requests", {
+  id: serial("id").primaryKey(),
+  createdBy: integer("created_by").notNull(),
+  snackType: text("snack_type").notNull(), // study, chill, debate, game, activity, campus
+  topic: text("topic"),
+  duration: integer("duration").notNull(), // 10, 15, 30 minutes
+  tags: text("tags").array(),
+  location: text("location"),
+  status: text("status").default("waiting").notNull(), // waiting, matched, completed, cancelled
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  matchedAt: timestamp("matched_at"),
+});
+
+export const snackSessions = pgTable("snack_sessions", {
+  id: serial("id").primaryKey(),
+  user1Id: integer("user_1_id").notNull(),
+  user2Id: integer("user_2_id").notNull(),
+  requestId1: integer("request_id_1").notNull(),
+  requestId2: integer("request_id_2").notNull(),
+  snackType: text("snack_type").notNull(),
+  topic: text("topic"),
+  duration: integer("duration").notNull(),
+  startedAt: timestamp("started_at").defaultNow().notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  status: text("status").default("active").notNull(), // active, ended, extended
+  ratingUser1: integer("rating_user_1"),
+  ratingUser2: integer("rating_user_2"),
+  endedAt: timestamp("ended_at"),
+});
+
+export const snackBlocks = pgTable("snack_blocks", {
+  id: serial("id").primaryKey(),
+  blockerId: integer("blocker_id").notNull(),
+  blockedId: integer("blocked_id").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const snackReports = pgTable("snack_reports", {
+  id: serial("id").primaryKey(),
+  reporterId: integer("reporter_id").notNull(),
+  reportedId: integer("reported_id").notNull(),
+  sessionId: integer("session_id"),
+  reason: text("reason").notNull(),
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const snackMessages = pgTable("snack_messages", {
+  id: serial("id").primaryKey(),
+  sessionId: integer("session_id").notNull(),
+  senderId: integer("sender_id").notNull(),
+  content: text("content").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 // Relations
 export const userRelations = relations(users, ({ one, many }) => ({
   university: one(universities, {
@@ -175,6 +233,38 @@ export const messageRelations = relations(directMessages, ({ one }) => ({
   }),
 }));
 
+export const snackRequestRelations = relations(snackRequests, ({ one }) => ({
+  creator: one(users, {
+    fields: [snackRequests.createdBy],
+    references: [users.id],
+  }),
+}));
+
+export const snackSessionRelations = relations(snackSessions, ({ one, many }) => ({
+  user1: one(users, {
+    fields: [snackSessions.user1Id],
+    references: [users.id],
+    relationName: "snackUser1",
+  }),
+  user2: one(users, {
+    fields: [snackSessions.user2Id],
+    references: [users.id],
+    relationName: "snackUser2",
+  }),
+  messages: many(snackMessages),
+}));
+
+export const snackMessageRelations = relations(snackMessages, ({ one }) => ({
+  sender: one(users, {
+    fields: [snackMessages.senderId],
+    references: [users.id],
+  }),
+  session: one(snackSessions, {
+    fields: [snackMessages.sessionId],
+    references: [snackSessions.id],
+  }),
+}));
+
 // Schemas
 export const insertUserSchema = createInsertSchema(users, {
   universityId: z.coerce.number(),
@@ -211,6 +301,36 @@ export const insertMessageSchema = createInsertSchema(directMessages).omit({
   senderId: true, // set by session
 });
 
+export const insertSnackRequestSchema = createInsertSchema(snackRequests, {
+  duration: z.number().refine((val) => [10, 15, 30].includes(val), {
+    message: "Duration must be 10, 15, or 30 minutes",
+  }),
+  snackType: z.enum(["study", "chill", "debate", "game", "activity", "campus"]),
+}).omit({
+  id: true,
+  createdAt: true,
+  createdBy: true, // set by session
+  status: true,
+  matchedAt: true,
+});
+
+export const insertSnackRatingSchema = z.object({
+  sessionId: z.number(),
+  rating: z.number().min(1).max(5),
+});
+
+export const insertSnackReportSchema = createInsertSchema(snackReports).omit({
+  id: true,
+  createdAt: true,
+  reporterId: true, // set by session
+});
+
+export const insertSnackMessageSchema = createInsertSchema(snackMessages).omit({
+  id: true,
+  createdAt: true,
+  senderId: true, // set by session
+});
+
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -225,3 +345,18 @@ export type ChallengeDefinition = typeof challengeDefinitions.$inferSelect;
 export type ChallengeRound = typeof challengeRounds.$inferSelect;
 export type ChallengeVote = typeof challengeVotes.$inferSelect;
 export type ChallengeLeaderboardEntry = typeof challengeLeaderboardEntries.$inferSelect;
+
+// Snack Types
+export type SnackRequest = typeof snackRequests.$inferSelect;
+export type InsertSnackRequest = z.infer<typeof insertSnackRequestSchema>;
+export type SnackSession = typeof snackSessions.$inferSelect;
+export type SnackMessage = typeof snackMessages.$inferSelect;
+export type InsertSnackMessage = z.infer<typeof insertSnackMessageSchema>;
+export type SnackReport = typeof snackReports.$inferSelect;
+export type InsertSnackReport = z.infer<typeof insertSnackReportSchema>;
+export type SnackBlock = typeof snackBlocks.$inferSelect;
+export type InsertSnackRating = z.infer<typeof insertSnackRatingSchema>;
+
+
+
+

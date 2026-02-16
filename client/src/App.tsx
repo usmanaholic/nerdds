@@ -15,6 +15,8 @@ import MessagesPage from "@/pages/messages";
 import CreatePostPage from "@/pages/create-post";
 import LayoutShell from "@/components/layout-shell";
 import ExplorePage from "@/pages/explore";
+import SnackPage from "@/pages/snack";
+
 function Router() {
   const { user, isLoading } = useAuth();
 
@@ -40,6 +42,7 @@ function Router() {
         <Route path="/profile/:username" component={ProfilePage} />
         <Route path="/messages" component={MessagesPage} />
         <Route path="/explore" component={ExplorePage} />
+        <Route path="/snack" component={SnackPage} />
         <Route component={NotFound} />
       </Switch>
     </LayoutShell>

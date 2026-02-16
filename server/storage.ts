@@ -1,8 +1,10 @@
 import { db } from "./db";
 import {
   users, universities, posts, comments, likes, follows, directMessages,
+  snackRequests, snackSessions, snackMessages,
   type User, type InsertUser, type University, type Post, type Comment, type DirectMessage,
-  type InsertPost, type InsertComment, type InsertMessage
+  type InsertPost, type InsertComment, type InsertMessage,
+  type SnackRequest, type SnackSession, type SnackMessage, type InsertSnackMessage,
 } from "@shared/schema";
 import { eq, desc, and, sql } from "drizzle-orm";
 import session from "express-session";
@@ -51,6 +53,15 @@ export interface IStorage {
     suggestedUsers: User[];
     hotTopics: Array<{ hashtag: string; count: number }>;
   }>;
+
+  // Snack
+  createSnackRequest(request: Omit<SnackRequest, 'id' | 'createdAt' | 'matchedAt'>): Promise<SnackRequest>;
+  getSnackRequest(id: number): Promise<SnackRequest | undefined>;
+  getMyActiveSnackRequest(userId: number): Promise<SnackRequest | undefined>;
+  getSnackSession(id: number): Promise<(SnackSession & { user1: User; user2: User }) | undefined>;
+  getMyActiveSnackSession(userId: number): Promise<(SnackSession & { user1: User; user2: User }) | undefined>;
+  getSnackMessages(sessionId: number): Promise<(SnackMessage & { sender: User })[]>;
+  createSnackMessage(message: InsertSnackMessage & { senderId: number }): Promise<SnackMessage>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -376,6 +387,110 @@ export class DatabaseStorage implements IStorage {
       suggestedUsers: suggestedUsersResults,
       hotTopics,
     };
+  }
+
+  // Snack Methods
+  async createSnackRequest(request: Omit<SnackRequest, 'id' | 'createdAt' | 'matchedAt'>): Promise<SnackRequest> {
+    const [newRequest] = await db.insert(snackRequests).values(request).returning();
+    return newRequest;
+  }
+
+  async getSnackRequest(id: number): Promise<SnackRequest | undefined> {
+    const [request] = await db.select().from(snackRequests).where(eq(snackRequests.id, id));
+    return request;
+  }
+
+  async getMyActiveSnackRequest(userId: number): Promise<SnackRequest | undefined> {
+    const [request] = await db
+      .select()
+      .from(snackRequests)
+      .where(
+        and(
+          eq(snackRequests.createdBy, userId),
+          eq(snackRequests.status, "waiting")
+        )
+      )
+      .orderBy(desc(snackRequests.createdAt))
+      .limit(1);
+    return request;
+  }
+
+  async getSnackSession(id: number): Promise<(SnackSession & { user1: User; user2: User }) | undefined> {
+    const [result] = await db
+      .select({
+        id: snackSessions.id,
+        user1Id: snackSessions.user1Id,
+        user2Id: snackSessions.user2Id,
+        requestId1: snackSessions.requestId1,
+        requestId2: snackSessions.requestId2,
+        snackType: snackSessions.snackType,
+        topic: snackSessions.topic,
+        duration: snackSessions.duration,
+        startedAt: snackSessions.startedAt,
+        expiresAt: snackSessions.expiresAt,
+        status: snackSessions.status,
+        ratingUser1: snackSessions.ratingUser1,
+        ratingUser2: snackSessions.ratingUser2,
+        endedAt: snackSessions.endedAt,
+        user1: users,
+        user2: users,
+      })
+      .from(snackSessions)
+      .innerJoin(users, eq(snackSessions.user1Id, users.id))
+      .where(eq(snackSessions.id, id));
+
+    if (!result) return undefined;
+
+    // Get user2 separately since we can't join users twice directly
+    const [user2] = await db.select().from(users).where(eq(users.id, result.user2Id));
+    if (!user2) return undefined;
+
+    return {
+      ...result,
+      user1: result.user1,
+      user2: user2,
+    };
+  }
+
+  async getMyActiveSnackSession(userId: number): Promise<(SnackSession & { user1: User; user2: User }) | undefined> {
+    const [session] = await db
+      .select()
+      .from(snackSessions)
+      .where(
+        and(
+          sql`(${snackSessions.user1Id} = ${userId} OR ${snackSessions.user2Id} = ${userId})`,
+          sql`${snackSessions.status} IN ('active', 'extended')`
+        )
+      )
+      .orderBy(desc(snackSessions.startedAt))
+      .limit(1);
+
+    if (!session) return undefined;
+
+    return await this.getSnackSession(session.id);
+  }
+
+  async getSnackMessages(sessionId: number): Promise<(SnackMessage & { sender: User })[]> {
+    const results = await db
+      .select({
+        id: snackMessages.id,
+        sessionId: snackMessages.sessionId,
+        senderId: snackMessages.senderId,
+        content: snackMessages.content,
+        createdAt: snackMessages.createdAt,
+        sender: users,
+      })
+      .from(snackMessages)
+      .innerJoin(users, eq(snackMessages.senderId, users.id))
+      .where(eq(snackMessages.sessionId, sessionId))
+      .orderBy(snackMessages.createdAt);
+
+    return results.map(r => ({ ...r, sender: r.sender }));
+  }
+
+  async createSnackMessage(message: InsertSnackMessage & { senderId: number }): Promise<SnackMessage> {
+    const [msg] = await db.insert(snackMessages).values(message).returning();
+    return msg;
   }
 }
 

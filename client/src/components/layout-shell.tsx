@@ -20,6 +20,7 @@ import {
   GraduationCap,
   ArrowLeft,
   Gamepad2,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -59,6 +60,7 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
   const navItems = [
     { icon: Home, label: "Home", href: user?.universityId ? `/u/${user.universityId}` : "/" },
     { icon: Search, label: "Explore", href: "/explore" },
+    { icon: Sparkles, label: "Snack", href: "/snack" },
     { icon: MessageSquare, label: "Messages", href: "/messages" },
     { icon: User, label: "Profile", href: user ? `/profile/${user.username}` : "/auth" },
   ];
